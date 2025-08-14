@@ -66,4 +66,5 @@ def stream_response(prompt, model):
 
 
 if __name__ == '__main__':
-	app.run(debug=True)
+	# Enable host binding for Docker container
+	app.run(host='0.0.0.0', port=5000, debug=False)
