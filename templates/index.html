@@ -5,11 +5,191 @@
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>Flask Single Page</title>
+    <style>
+        .thinking-section {
+            background: #f0f8ff;
+            border: 1px solid #b0d4ff;
+            border-radius: 6px;
+            margin: 10px 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        .thinking-toggle {
+            background: #e6f2ff;
+            padding: 12px 16px;
+            margin: 0;
+            cursor: pointer;
+            border: none;
+            width: 100%;
+            text-align: left;
+            font-weight: 500;
+            color: #0066cc;
+            border-bottom: 1px solid #b0d4ff;
+        }
+        
+        .thinking-toggle:hover {
+            background: #d9edff;
+        }
+        
+        .thinking-content {
+            padding: 16px;
+            white-space: pre-line;
+            font-style: italic;
+            color: #555;
+            display: none;
+        }
+        
+        .thinking-content.show {
+            display: block;
+        }
+        
+        .main-response {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 10px;
+            line-height: 1.6;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        
+        .response-text {
+            white-space: pre-line;
+        }
+        
+        .toggle-all-thinking {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .toggle-all-thinking:hover {
+            background: #0052a3;
+        }
+        
+        /* Markdown styling */
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+            color: #333;
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        
+        .markdown-content h1 {
+            font-size: 2em;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 8px;
+        }
+        
+        .markdown-content h2 {
+            font-size: 1.5em;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 4px;
+        }
+        
+        .markdown-content h3 {
+            font-size: 1.25em;
+        }
+        
+        .markdown-content code {
+            background: #f6f8fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #d73a49;
+        }
+        
+        .markdown-content pre {
+            background: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+        
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        
+        .markdown-content blockquote {
+            border-left: 4px solid #dfe2e5;
+            padding-left: 16px;
+            margin: 16px 0;
+            color: #6a737d;
+        }
+        
+        .markdown-content ul, .markdown-content ol {
+            padding-left: 24px;
+            margin: 16px 0;
+        }
+        
+        .markdown-content li {
+            margin: 4px 0;
+        }
+        
+        .markdown-content strong {
+            font-weight: 600;
+        }
+        
+        .markdown-content em {
+            font-style: italic;
+        }
+        
+        .markdown-content p {
+            margin: 16px 0;
+            line-height: 1.6;
+        }
+        
+        .markdown-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+        }
+        
+        .markdown-content th, .markdown-content td {
+            border: 1px solid #dfe2e5;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        
+        .markdown-content th {
+            background: #f6f8fa;
+            font-weight: 600;
+        }
+        
+        .math-display {
+            text-align: center;
+            margin: 20px 0;
+            padding: 16px;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            font-family: 'Times New Roman', serif;
+            font-size: 1.1em;
+        }
+        
+        .math-inline {
+            font-family: 'Times New Roman', serif;
+            background: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
 </head>
 
 <body>
     <h1>Welcome to the Flask Single Page App!</h1>
-    <form method="POST">
+    <form id="chat-form">
         <label for="model">Choose a model:</label><br>
         <select id="model" name="model">
             {% for model in models %}
@@ -17,26 +197,277 @@
             {% endfor %}
         </select><br><br>
         <label for="prompt">Enter your prompt:</label><br>
-        <textarea id="prompt" name="prompt" rows="6" cols="50"></textarea><br>
-        <button type="submit">Submit</button>
-        
+        <textarea id="prompt" name="prompt" rows="6" cols="50" required></textarea><br>
+        <button type="submit" id="submit-btn">Submit</button>
+        <button type="button" id="stop-btn" style="display:none; background:#dc3545;">Stop</button>
     </form>
-    {% if response %}
+    
+    <div id="response-container" style="display:none;">
         <h2>Response:</h2>
-        {% if selected_model %}
-            <div style="margin-bottom:8px; color:#555;">Model used: <strong>{{ selected_model }}</strong></div>
-        {% endif %}
-        <div style="background:#f4f4f4; border-radius:8px; padding:16px; margin-top:10px; white-space:pre-wrap; font-family:monospace;">
-            {{ response | e | replace('\n', '<br>') | safe }}
+        <div id="model-info" style="margin-bottom:8px; color:#555;"></div>
+        
+        <button class="toggle-all-thinking" onclick="toggleAllThinking()" style="display:none;">
+            <span id="toggle-text">💭 Show All Thinking</span>
+        </button>
+        
+        <div class="main-response">
+            <div id="streaming-response" class="response-text"></div>
         </div>
-    {% endif %}
-    {% if response_raw %}
-        <details style="margin-top:12px;">
-            <summary style="cursor:pointer">Show raw response (JSON)</summary>
-            <pre style="background:#222; color:#ddd; padding:12px; border-radius:6px; overflow:auto; max-height:400px;">{{ response_raw }}</pre>
-        </details>
-    {% endif %}
-    <!-- Removed broken JS block for response -->
+        
+        <div id="status" style="margin-top:10px; font-style:italic; color:#666;"></div>
+    </div>
+        
+        <script>
+            // Streaming functionality
+            let currentStream = null;
+            let allThinkingVisible = false;
+            let accumulatedResponse = '';
+            
+            // Form submission handler
+            document.getElementById('chat-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const prompt = document.getElementById('prompt').value.trim();
+                const model = document.getElementById('model').value;
+                
+                if (!prompt || !model) {
+                    alert('Please enter a prompt and select a model');
+                    return;
+                }
+                
+                startStreaming(prompt, model);
+            });
+            
+            // Stop button handler
+            document.getElementById('stop-btn').addEventListener('click', function() {
+                stopStreaming();
+            });
+            
+            function startStreaming(prompt, model) {
+                // Show response container and update UI
+                document.getElementById('response-container').style.display = 'block';
+                document.getElementById('model-info').innerHTML = `Model used: <strong>${model}</strong>`;
+                document.getElementById('streaming-response').innerHTML = '';
+                document.getElementById('status').textContent = 'Connecting...';
+                
+                // Update button states
+                document.getElementById('submit-btn').disabled = true;
+                document.getElementById('stop-btn').style.display = 'inline-block';
+                
+                accumulatedResponse = '';
+                
+                // Start streaming
+                fetch('/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        model: model
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    
+                    currentStream = response.body.getReader();
+                    document.getElementById('status').textContent = 'Streaming...';
+                    
+                    return readStream();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('status').textContent = 'Error: ' + error.message;
+                    resetUI();
+                });
+            }
+            
+            function readStream() {
+                return currentStream.read().then(({ done, value }) => {
+                    if (done) {
+                        document.getElementById('status').textContent = 'Complete';
+                        resetUI();
+                        processCompletedResponse();
+                        return;
+                    }
+                    
+                    // Decode and append the chunk
+                    const chunk = new TextDecoder().decode(value);
+                    accumulatedResponse += chunk;
+                    
+                    // Update the display with raw streaming text
+                    document.getElementById('streaming-response').innerHTML = 
+                        `<div style="white-space: pre-wrap;">${accumulatedResponse}</div>`;
+                    
+                    // Continue reading
+                    return readStream();
+                });
+            }
+            
+            function stopStreaming() {
+                if (currentStream) {
+                    currentStream.cancel();
+                    currentStream = null;
+                }
+                document.getElementById('status').textContent = 'Stopped';
+                resetUI();
+                processCompletedResponse();
+            }
+            
+            function resetUI() {
+                document.getElementById('submit-btn').disabled = false;
+                document.getElementById('stop-btn').style.display = 'none';
+            }
+            
+            function processCompletedResponse() {
+                // Process the completed response with markdown and thinking sections
+                if (accumulatedResponse) {
+                    const parsedHtml = parseResponse(accumulatedResponse);
+                    document.getElementById('streaming-response').innerHTML = parsedHtml;
+                    
+                    // Show thinking toggle if there are thinking sections
+                    const thinkingSections = document.querySelectorAll('.thinking-section');
+                    if (thinkingSections.length > 0) {
+                        document.querySelector('.toggle-all-thinking').style.display = 'block';
+                    }
+                }
+            }
+            
+            function parseMarkdown(text) {
+                if (!text) return '';
+                
+                // Convert markdown to HTML
+                let html = text;
+                
+                // Headers
+                html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+                html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+                html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+                
+                // Bold and italic
+                html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+                html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                
+                // Code blocks
+                html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+                html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+                
+                // Math expressions
+                html = html.replace(/\\\[([\s\S]*?)\\\]/g, '<div class="math-display">$1</div>');
+                html = html.replace(/\\\((.*?)\\\)/g, '<span class="math-inline">$1</span>');
+                
+                // Handle \\boxed{} for math answers
+                html = html.replace(/\\boxed\{([^}]*)\}/g, '<div class="math-display" style="border: 2px solid #28a745; background: #d4edda; color: #155724; font-weight: bold;">$1</div>');
+                
+                // Lists
+                html = html.replace(/^\* (.*$)/gim, '<li>$1</li>');
+                html = html.replace(/^- (.*$)/gim, '<li>$1</li>');
+                html = html.replace(/^(\d+)\. (.*$)/gim, '<li>$1. $2</li>');
+                
+                // Wrap consecutive list items in ul/ol
+                html = html.replace(/(<li>.*<\/li>)/gs, function(match) {
+                    if (match.includes('1. ') || /\d+\./.test(match)) {
+                        return '<ol>' + match + '</ol>';
+                    }
+                    return '<ul>' + match + '</ul>';
+                });
+                
+                // Blockquotes
+                html = html.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
+                
+                // Line breaks and paragraphs
+                html = html.replace(/\n\n/g, '</p><p>');
+                html = html.replace(/\n/g, '<br>');
+                html = '<p>' + html + '</p>';
+                
+                // Clean up empty paragraphs
+                html = html.replace(/<p><\/p>/g, '');
+                html = html.replace(/<p><br><\/p>/g, '');
+                
+                return html;
+            }
+            
+            function parseResponse(text) {
+                if (!text) return '';
+                
+                // Split by <think> and </think> tags
+                const parts = text.split(/(<think>|<\/think>)/i);
+                let html = '';
+                let inThinking = false;
+                let thinkingCounter = 0;
+                
+                for (let i = 0; i < parts.length; i++) {
+                    const part = parts[i];
+                    
+                    if (part.toLowerCase() === '<think>') {
+                        inThinking = true;
+                        thinkingCounter++;
+                        html += `<div class="thinking-section">
+                                    <div class="thinking-toggle" onclick="toggleThinking(${thinkingCounter})">
+                                        💭 Show thinking process #${thinkingCounter}
+                                    </div>
+                                    <div class="thinking-content" id="thinking-${thinkingCounter}">`;
+                    } else if (part.toLowerCase() === '</think>') {
+                        inThinking = false;
+                        html += `</div></div>`;
+                    } else if (part.trim()) {
+                        if (inThinking) {
+                            html += `<div style="white-space: pre-line;">${part}</div>`;
+                        } else {
+                            // Apply markdown parsing to main response content
+                            const markdownHtml = parseMarkdown(part);
+                            html += `<div class="markdown-content">${markdownHtml}</div>`;
+                        }
+                    }
+                }
+                
+                return html;
+            }
+            
+            function toggleThinking(id) {
+                const content = document.getElementById(`thinking-${id}`);
+                const toggle = content.previousElementSibling;
+                
+                if (content.classList.contains('show')) {
+                    content.classList.remove('show');
+                    toggle.innerHTML = `💭 Show thinking process #${id}`;
+                } else {
+                    content.classList.add('show');
+                    toggle.innerHTML = `🧠 Hide thinking process #${id}`;
+                }
+            }
+            
+            function toggleAllThinking() {
+                const thinkingContents = document.querySelectorAll('.thinking-content');
+                const toggleText = document.getElementById('toggle-text');
+                
+                allThinkingVisible = !allThinkingVisible;
+                
+                thinkingContents.forEach((content, index) => {
+                    const toggle = content.previousElementSibling;
+                    const id = index + 1;
+                    
+                    if (allThinkingVisible) {
+                        content.classList.add('show');
+                        toggle.innerHTML = `🧠 Hide thinking process #${id}`;
+                        toggleText.textContent = '🧠 Hide All Thinking';
+                    } else {
+                        content.classList.remove('show');
+                        toggle.innerHTML = `💭 Show thinking process #${id}`;
+                        toggleText.textContent = '💭 Show All Thinking';
+                    }
+                });
+            }
+            
+            // Initialize the page
+            document.addEventListener('DOMContentLoaded', function() {
+                // Page is ready for streaming
+                console.log('Streaming interface ready');
+            });
+        </script>
 </body>
 
 </html>

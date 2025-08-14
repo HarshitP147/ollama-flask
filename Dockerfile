@@ -48,4 +48,4 @@ COPY . .
 EXPOSE 5000
 
 # Run the application.
-CMD python index.py
+CMD ["python", "index.py"]
